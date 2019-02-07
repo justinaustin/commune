@@ -1,7 +1,9 @@
 use std::cmp::Ordering;
 use std::fmt;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+use strum::IntoEnumIterator;
+
+#[derive(Clone, Copy, Debug, EnumIter, Eq, PartialEq)]
 pub enum Suit {
     Clubs,
     Spades,
@@ -9,7 +11,7 @@ pub enum Suit {
     Diamonds,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Copy, Debug, EnumIter, Eq, PartialEq, Ord, PartialOrd)]
 pub enum Rank {
     Two,
     Three,
@@ -156,9 +158,7 @@ impl Card {
                     format!("|{}{}  |", self.rank, self.suit)
                 }
             }
-            LineNumber::Two => {
-                format!("|  {}  |", self.suit)
-            }
+            LineNumber::Two => format!("|  {}  |", self.suit),
             LineNumber::Three => {
                 if self.rank != Rank::Ten {
                     format!("|  {} {}|", self.suit, self.rank)
@@ -181,24 +181,12 @@ impl Card {
         output
     }
 
-    pub fn get_all_with_rank(rank: Rank) -> [Card; 4] {
-        let mut output = [Card {
-            suit: Suit::Clubs,
-            rank: rank,
-        }; 4];
-        output[1] = Card {
-            suit: Suit::Diamonds,
-            rank: rank,
-        };
-        output[2] = Card {
-            suit: Suit::Hearts,
-            rank: rank,
-        };
-        output[3] = Card {
-            suit: Suit::Spades,
-            rank: rank,
-        };
-        output
+    pub fn get_all_with_rank(rank: Rank) -> Vec<Card> {
+        Suit::iter().map(|suit| Card { suit, rank }).collect()
+    }
+
+    pub fn get_all_with_suit(suit: Suit) -> Vec<Card> {
+        Rank::iter().map(|rank| Card { suit, rank }).collect()
     }
 }
 
@@ -215,7 +203,6 @@ impl LineNumber {
 }
 
 #[cfg(test)]
-
 mod test {
     use crate::card;
     #[test]
@@ -238,6 +225,22 @@ mod test {
             rank: card::Rank::Jack,
             suit: card::Suit::Clubs,
         };
-        assert!(card1 < card2)
+        assert!(card1 < card2);
+    }
+    #[test]
+    fn all_suits() {
+        let mut cards = card::Card::get_all_with_suit(card::Suit::Hearts);
+        let initial_len = cards.len();
+        cards.sort();
+        cards.dedup();
+        assert_eq!(initial_len, cards.len());
+    }
+    #[test]
+    fn all_ranks() {
+        let mut cards = card::Card::get_all_with_rank(card::Rank::Ace);
+        let initial_len = cards.len();
+        cards.sort();
+        cards.dedup();
+        assert_eq!(initial_len, cards.len());
     }
 }
