@@ -1,3 +1,9 @@
+use crate::card::{Card, Rank, Suit};
+use itertools::Itertools;
+use rand::seq::SliceRandom;
+use rand::thread_rng;
+use strum::IntoEnumIterator;
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum HandValue {
     HighCard(Rank),
@@ -16,28 +22,43 @@ pub struct Hand {
 
 #[derive(Clone, Debug)]
 pub struct Deck {
-    pub cards: Vec<Card>,
+    cards: Vec<Card>,
 }
 
 impl Hand {
-    // returns an empty hand
+    /// Return an empty hand.
     pub fn empty_hand() -> Hand {
         Hand { cards: vec![] }
     }
 }
 
 impl Deck {
-    // returns a standard 52 card deck
-    pub fn get_full_deck() -> Hand {
-        let mut cards = vec![];
-        for rank_u8 in 2..15 {
-            let rank = Rank::from_u8(rank_u8).unwrap();
-            let to_add = Card::get_all_with_rank(rank);
-            for card in &to_add {
-                cards.push(*card);
-            }
-        }
-        thread_rng().shuffle(&mut cards);
-        Hand { cards: cards }
+    /// Return a standard, shuffled 52 card deck.
+    pub fn get_full_deck() -> Self {
+        let mut cards: Vec<Card> = Suit::iter()
+            .cartesian_product(Rank::iter())
+            .map(|(suit, rank)| Card { suit, rank })
+            .collect();
+        let mut rng = thread_rng();
+        cards.shuffle(&mut rng);
+
+        Self { cards: cards }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::poker;
+
+    #[test]
+    fn empty_hand() {
+        let hand = poker::Hand::empty_hand();
+        assert_eq!(0, hand.cards.len());
+    }
+
+    #[test]
+    fn full_deck() {
+        let deck = poker::Deck::get_full_deck();
+        assert_eq!(52, deck.cards.len());
     }
 }
