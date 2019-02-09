@@ -1,4 +1,4 @@
-use crate::poker::{Deck, Hand, HandValue, PokerError};
+use crate::poker::{Commune, Deck, Hand, HandValue, PokerError};
 
 type GameResult = Result<(), GameError>;
 
@@ -27,6 +27,7 @@ pub enum GameMove {
 #[derive(Debug)]
 pub enum GameError {
     Poker(PokerError),
+    CallWithNoBet,
 }
 
 impl From<PokerError> for GameError {
@@ -46,7 +47,7 @@ impl GameState {
         match game_move {
             GameMove::NewGame(num_players) => self.create_new_game(num_players)?,
             GameMove::Bet(value) => self.process_bet(value),
-            GameMove::Call() => self.process_call(),
+            GameMove::Call() => self.process_call()?,
         };
         Ok(())
     }
@@ -79,18 +80,52 @@ impl GameState {
     }
 
     fn process_bet(&mut self, value: HandValue) {
-        unimplemented!()
+        self.current_bet = Some(value);
+        self.current_turn += 1;
+        if self.current_turn == self.players.len() {
+            self.current_turn = 0;
+        }
     }
 
-    fn process_call(&mut self) {
-        unimplemented!()
+    fn process_call(&mut self) -> GameResult {
+        match self.current_bet {
+            None => Err(GameError::CallWithNoBet),
+            Some(bet) => {
+                if self.gather_all_cards().contains_handvalue(bet) {
+                    unimplemented!();
+                } else {
+                    unimplemented!();
+                }
+            }
+        }
+    }
+
+    fn gather_all_cards(&self) -> Commune {
+        Commune {
+            cards: self
+                .players
+                .iter()
+                .flat_map(|player| player.hand.cards.iter().map(|card| *card))
+                .collect(),
+        }
     }
 }
 
 #[cfg(test)]
 mod test {
+    use crate::card;
     use crate::game;
     use crate::poker;
+
+    fn default_gamestate() -> game::GameState {
+        game::GameState {
+            players: vec![],
+            current_turn: 0,
+            current_bet: None,
+            deck: poker::Deck::get_full_deck(),
+        }
+    }
+
     #[test]
     fn player_is_out() {
         let in_player = game::Player {
@@ -109,17 +144,33 @@ mod test {
 
     #[test]
     fn new_game() {
-        let mut state = game::GameState {
-            players: vec![],
-            current_turn: 0,
-            current_bet: None,
-            deck: poker::Deck::get_full_deck(),
-        };
+        let mut state = default_gamestate();
         state.create_new_game(3).unwrap();
         assert_eq!(3, state.players.len());
         assert!(state
             .players
             .iter()
             .all(|player| player.hand.cards.len() == 1));
+    }
+
+    #[test]
+    fn bet() {
+        let mut state = default_gamestate();
+        state.create_new_game(3).unwrap();
+        state.current_turn = 2;
+        state.process_bet(poker::HandValue::ThreeOfAKind(card::Rank::Ten));
+        assert_eq!(0, state.current_turn);
+    }
+
+    #[test]
+    fn gather_all_cards() {
+        let mut state = default_gamestate();
+        state.create_new_game(3).unwrap();
+        let gathered_cards = state.gather_all_cards().cards;
+        assert!(state
+            .players
+            .iter()
+            .all(|player| gathered_cards.contains(&player.hand.cards[0])));
+        assert_eq!(3, gathered_cards.len());
     }
 }

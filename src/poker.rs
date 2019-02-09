@@ -25,6 +25,11 @@ pub struct Deck {
     cards: Vec<Card>,
 }
 
+#[derive(Clone, Debug)]
+pub struct Commune {
+    pub cards: Vec<Card>,
+}
+
 #[derive(Debug)]
 pub enum PokerError {
     NotEnoughCards(String),
@@ -34,6 +39,61 @@ impl Hand {
     /// Return an empty hand.
     pub fn empty_hand() -> Hand {
         Hand { cards: vec![] }
+    }
+}
+
+impl Commune {
+    /// Return True iff the Commune contains the input HandValue.
+    pub fn contains_handvalue(&self, value: HandValue) -> bool {
+        match value {
+            HandValue::FourOfAKind(rank) => self.contains_x_cards_of_rank(4, rank),
+            HandValue::FullHouse(three_of, two_of) => {
+                self.contains_handvalue(HandValue::ThreeOfAKind(three_of))
+                    && self.contains_handvalue(HandValue::OnePair(two_of))
+            }
+            HandValue::Straight(top_rank) => {
+                if top_rank < Rank::Six {
+                    false
+                } else {
+                    self.contains_straight(top_rank)
+                }
+            }
+            HandValue::ThreeOfAKind(rank) => self.contains_x_cards_of_rank(3, rank),
+            HandValue::TwoPair(first, second) => {
+                self.contains_x_cards_of_rank(2, first) && self.contains_x_cards_of_rank(2, second)
+            }
+            HandValue::OnePair(rank) => self.contains_x_cards_of_rank(2, rank),
+            HandValue::HighCard(rank) => self.contains_x_cards_of_rank(1, rank),
+        }
+    }
+
+    fn contains_x_cards_of_rank(&self, x: u8, rank: Rank) -> bool {
+        let needed_cards = Card::get_all_with_rank(rank);
+        let num_cards = needed_cards.iter().fold(0, |acc, card| {
+            acc + if self.cards.contains(card) { 1 } else { 0 }
+        });
+        num_cards >= x
+    }
+
+    fn contains_straight(&self, top_rank: Rank) -> bool {
+        let top_rank_index = top_rank.to_u8() as usize;
+        let all_ranks: Vec<Rank> = Rank::iter().collect();
+        let ranks_in_straight: Vec<Rank> = &all_ranks[0: top_rank_index]
+            .iter()
+            .rev()
+            .take(5)
+            .collect();
+        let all_possible_cards_in_straight: Vec<Vec<Card>> = ranks_in_straight
+            .iter()
+            .map(|rank| Card::get_all_with_rank(*rank))
+            .collect();
+        all_possible_cards_in_straight
+            .into_iter()
+            .all(|cards_in_rank| {
+                cards_in_rank
+                    .into_iter()
+                    .any(|card| self.cards.contains(&card))
+            })
     }
 }
 
@@ -66,6 +126,7 @@ impl Deck {
 
 #[cfg(test)]
 mod test {
+    use crate::card;
     use crate::poker;
 
     #[test]
@@ -94,5 +155,42 @@ mod test {
         let _ = deck.deal_cards(40).unwrap();
         let should_be_error = deck.deal_cards(40);
         assert!(should_be_error.is_err());
+    }
+
+    #[test]
+    fn contains_handvalue() {
+        let commune = poker::Commune {
+            cards: vec![
+                card::Card {
+                    rank: card::Rank::Queen,
+                    suit: card::Suit::Hearts,
+                },
+                card::Card {
+                    rank: card::Rank::Queen,
+                    suit: card::Suit::Clubs,
+                },
+                card::Card {
+                    rank: card::Rank::Nine,
+                    suit: card::Suit::Clubs,
+                },
+                card::Card {
+                    rank: card::Rank::Queen,
+                    suit: card::Suit::Diamonds,
+                },
+                card::Card {
+                    rank: card::Rank::Nine,
+                    suit: card::Suit::Diamonds,
+                },
+                card::Card {
+                    rank: card::Rank::Three,
+                    suit: card::Suit::Spades,
+                },
+            ],
+        };
+        assert!(commune.contains_handvalue(poker::HandValue::FullHouse(
+            card::Rank::Queen,
+            card::Rank::Nine,
+        )));
+        assert!(!commune.contains_handvalue(poker::HandValue::ThreeOfAKind(card::Rank::Nine)));
     }
 }
