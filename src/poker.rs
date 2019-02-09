@@ -25,6 +25,11 @@ pub struct Deck {
     cards: Vec<Card>,
 }
 
+#[derive(Debug)]
+pub enum PokerError {
+    NotEnoughCards(String),
+}
+
 impl Hand {
     /// Return an empty hand.
     pub fn empty_hand() -> Hand {
@@ -44,6 +49,19 @@ impl Deck {
 
         Self { cards: cards }
     }
+
+    /// Deal cards from the deck.
+    pub fn deal_cards(&mut self, num_cards: usize) -> Result<Hand, PokerError> {
+        if num_cards > self.cards.len() {
+            Err(PokerError::NotEnoughCards(
+                "Tried to deal more cards than in deck.".to_owned(),
+            ))
+        } else {
+            Ok(Hand {
+                cards: self.cards.split_off(self.cards.len() - num_cards),
+            })
+        }
+    }
 }
 
 #[cfg(test)]
@@ -60,5 +78,21 @@ mod test {
     fn full_deck() {
         let deck = poker::Deck::get_full_deck();
         assert_eq!(52, deck.cards.len());
+    }
+
+    #[test]
+    fn deal_cards_valid() {
+        let mut deck = poker::Deck::get_full_deck();
+        let hand = deck.deal_cards(7).unwrap();
+        assert_eq!(7, hand.cards.len());
+        assert_eq!(52, hand.cards.len() + deck.cards.len());
+    }
+
+    #[test]
+    fn deal_cards_invalid() {
+        let mut deck = poker::Deck::get_full_deck();
+        let _ = deck.deal_cards(40).unwrap();
+        let should_be_error = deck.deal_cards(40);
+        assert!(should_be_error.is_err());
     }
 }
