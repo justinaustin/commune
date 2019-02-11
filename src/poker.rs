@@ -1,4 +1,4 @@
-use crate::card::{Card, Rank, Suit};
+use crate::card::{Card, LineNumber, Rank, Suit};
 use itertools::Itertools;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
@@ -40,6 +40,18 @@ impl Hand {
     pub fn empty_hand() -> Hand {
         Hand { cards: vec![] }
     }
+
+    pub fn to_string(&self) -> String {
+        let mut output = "".to_owned();
+        for i in LineNumber::iter() {
+            for card in &self.cards {
+                output.push_str(&card.to_single_string(i));
+                output.push_str(" ");
+            }
+            output.push_str("\n");
+        }
+        output
+    }
 }
 
 impl Commune {
@@ -78,11 +90,7 @@ impl Commune {
     fn contains_straight(&self, top_rank: Rank) -> bool {
         let top_rank_index = top_rank.to_u8() as usize;
         let all_ranks: Vec<Rank> = Rank::iter().collect();
-        let ranks_in_straight: Vec<Rank> = &all_ranks[0: top_rank_index]
-            .iter()
-            .rev()
-            .take(5)
-            .collect();
+        let ranks_in_straight = &all_ranks[top_rank_index - 6..top_rank_index - 1];
         let all_possible_cards_in_straight: Vec<Vec<Card>> = ranks_in_straight
             .iter()
             .map(|rank| Card::get_all_with_rank(*rank))
@@ -129,6 +137,53 @@ mod test {
     use crate::card;
     use crate::poker;
 
+    fn default_commune() -> poker::Commune {
+        poker::Commune {
+            cards: vec![
+                card::Card {
+                    rank: card::Rank::Queen,
+                    suit: card::Suit::Spades,
+                },
+                card::Card {
+                    rank: card::Rank::Queen,
+                    suit: card::Suit::Hearts,
+                },
+                card::Card {
+                    rank: card::Rank::Queen,
+                    suit: card::Suit::Clubs,
+                },
+                card::Card {
+                    rank: card::Rank::Queen,
+                    suit: card::Suit::Diamonds,
+                },
+                card::Card {
+                    rank: card::Rank::Jack,
+                    suit: card::Suit::Diamonds,
+                },
+                card::Card {
+                    rank: card::Rank::Ten,
+                    suit: card::Suit::Spades,
+                },
+                card::Card {
+                    rank: card::Rank::Nine,
+                    suit: card::Suit::Clubs,
+                },
+                card::Card {
+                    rank: card::Rank::Nine,
+                    suit: card::Suit::Diamonds,
+                },
+                card::Card {
+                    rank: card::Rank::Eight,
+                    suit: card::Suit::Hearts,
+                },
+                card::Card {
+                    rank: card::Rank::Three,
+                    suit: card::Suit::Spades,
+                },
+            ],
+        }
+    }
+
     #[test]
     fn empty_hand() {
         let hand = poker::Hand::empty_hand();
@@ -158,39 +213,20 @@ mod test {
     }
 
     #[test]
-    fn contains_handvalue() {
-        let commune = poker::Commune {
-            cards: vec![
-                card::Card {
-                    rank: card::Rank::Queen,
-                    suit: card::Suit::Hearts,
-                },
-                card::Card {
-                    rank: card::Rank::Queen,
-                    suit: card::Suit::Clubs,
-                },
-                card::Card {
-                    rank: card::Rank::Nine,
-                    suit: card::Suit::Clubs,
-                },
-                card::Card {
-                    rank: card::Rank::Queen,
-                    suit: card::Suit::Diamonds,
-                },
-                card::Card {
-                    rank: card::Rank::Nine,
-                    suit: card::Suit::Diamonds,
-                },
-                card::Card {
-                    rank: card::Rank::Three,
-                    suit: card::Suit::Spades,
-                },
-            ],
-        };
+    fn contains_handvalue_pairs_triples() {
+        let commune = default_commune();
         assert!(commune.contains_handvalue(poker::HandValue::FullHouse(
             card::Rank::Queen,
             card::Rank::Nine,
         )));
         assert!(!commune.contains_handvalue(poker::HandValue::ThreeOfAKind(card::Rank::Nine)));
+    }
+
+    #[test]
+    fn contains_handvalue_straight() {
+        let commune = default_commune();
+        assert!(commune.contains_handvalue(poker::HandValue::Straight(card::Rank::Queen)));
+        assert!(!commune.contains_handvalue(poker::HandValue::Straight(card::Rank::Eight)));
+        assert!(!commune.contains_handvalue(poker::HandValue::Straight(card::Rank::King)));
     }
 }

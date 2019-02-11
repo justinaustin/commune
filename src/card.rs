@@ -34,7 +34,7 @@ pub struct Card {
     pub rank: Rank,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, EnumIter, Eq, PartialEq)]
 pub enum LineNumber {
     Zero,
     One,
@@ -171,9 +171,9 @@ impl Card {
 
     pub fn to_string(&self) -> String {
         let mut output = "".to_owned();
-        let num_lines = LineNumber::lines().len();
-        for (i, line) in LineNumber::lines().into_iter().enumerate() {
-            output.push_str(&self.to_single_string(*line));
+        let num_lines = LineNumber::iter().len();
+        for (i, line) in LineNumber::iter().enumerate() {
+            output.push_str(&self.to_single_string(line));
             if i < num_lines - 1 {
                 output.push_str("\n");
             }
@@ -187,18 +187,6 @@ impl Card {
 
     pub fn get_all_with_suit(suit: Suit) -> Vec<Card> {
         Rank::iter().map(|rank| Card { suit, rank }).collect()
-    }
-}
-
-impl LineNumber {
-    pub fn lines() -> [LineNumber; 5] {
-        [
-            LineNumber::Zero,
-            LineNumber::One,
-            LineNumber::Two,
-            LineNumber::Three,
-            LineNumber::Four,
-        ]
     }
 }
 

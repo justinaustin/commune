@@ -1,20 +1,21 @@
 use crate::poker::{Commune, Deck, Hand, HandValue, PokerError};
+use std::num::ParseIntError;
 
-type GameResult = Result<(), GameError>;
+pub type GameResult = Result<(), GameError>;
 
 #[derive(Clone, Debug)]
 pub struct Player {
-    name: u8,
-    hand: Hand,
-    penalties: u8,
+    pub name: u8,
+    pub hand: Hand,
+    pub penalties: u8,
 }
 
 #[derive(Clone, Debug)]
 pub struct GameState {
-    players: Vec<Player>,
-    current_turn: usize,
-    current_bet: Option<HandValue>,
-    deck: Deck,
+    pub players: Vec<Player>,
+    pub current_turn: usize,
+    pub current_bet: Option<HandValue>,
+    pub deck: Deck,
 }
 
 #[derive(Debug)]
@@ -28,11 +29,18 @@ pub enum GameMove {
 pub enum GameError {
     Poker(PokerError),
     CallWithNoBet,
+    IO,
 }
 
 impl From<PokerError> for GameError {
     fn from(e: PokerError) -> Self {
         GameError::Poker(e)
+    }
+}
+
+impl From<ParseIntError> for GameError {
+    fn from(e: ParseIntError) -> Self {
+        GameError::IO
     }
 }
 
@@ -43,6 +51,17 @@ impl Player {
 }
 
 impl GameState {
+    pub fn init_game(num_players: u8) -> Self {
+        let mut new_game = Self {
+            players: vec![],
+            current_turn: 0,
+            current_bet: None,
+            deck: Deck::get_full_deck(),
+        };
+        new_game.create_new_game(num_players);
+        new_game
+    }
+
     pub fn process_move(&mut self, game_move: GameMove) -> GameResult {
         match game_move {
             GameMove::NewGame(num_players) => self.create_new_game(num_players)?,
@@ -50,6 +69,13 @@ impl GameState {
             GameMove::Call() => self.process_call()?,
         };
         Ok(())
+    }
+
+    pub fn display(&self) {
+        for player in &self.players {
+            println!("Player {}: ", player.name);
+            println!("{}", player.hand.to_string());
+        }
     }
 
     fn create_new_game(&mut self, num_players: u8) -> GameResult {
@@ -81,6 +107,10 @@ impl GameState {
 
     fn process_bet(&mut self, value: HandValue) {
         self.current_bet = Some(value);
+        self.increment_turn();
+    }
+
+    fn increment_turn(&mut self) {
         self.current_turn += 1;
         if self.current_turn == self.players.len() {
             self.current_turn = 0;
@@ -91,12 +121,31 @@ impl GameState {
         match self.current_bet {
             None => Err(GameError::CallWithNoBet),
             Some(bet) => {
-                if self.gather_all_cards().contains_handvalue(bet) {
-                    unimplemented!();
+                let penalized_player = if self.gather_all_cards().contains_handvalue(bet) {
+                    self.current_turn
                 } else {
-                    unimplemented!();
-                }
+                    self.get_previous_player()
+                };
+                self.penalize_player(penalized_player);
+                self.current_turn = penalized_player;
+                self.current_bet = None;
+                self.deal_hands()
             }
+        }
+    }
+
+    fn get_previous_player(&self) -> usize {
+        if self.current_turn > 0 {
+            self.current_turn - 1
+        } else {
+            self.players.len() - 1
+        }
+    }
+
+    fn penalize_player(&mut self, player: usize) {
+        self.players[player].penalties += 1;
+        if self.players[player].is_out() {
+            self.players.remove(player);
         }
     }
 
@@ -172,5 +221,30 @@ mod test {
             .iter()
             .all(|player| gathered_cards.contains(&player.hand.cards[0])));
         assert_eq!(3, gathered_cards.len());
+    }
+
+    #[test]
+    fn unsuccessful_call() {
+        let mut state = default_gamestate();
+        state.create_new_game(3).unwrap();
+        state.current_bet = Some(poker::HandValue::FourOfAKind(card::Rank::Ace));
+        let penalized_player = 2;
+        state.process_call().unwrap();
+        assert_eq!(2, state.players[penalized_player].hand.cards.len());
+        assert_eq!(1, state.players[0].hand.cards.len());
+        assert_eq!(1, state.players[1].hand.cards.len());
+    }
+
+    #[test]
+    fn successful_call() {
+        let mut state = default_gamestate();
+        state.create_new_game(3).unwrap();
+        let existing_rank = state.players[0].hand.cards[0].rank;
+        state.current_bet = Some(poker::HandValue::HighCard(existing_rank));
+        let penalized_player = 0;
+        state.process_call().unwrap();
+        assert_eq!(2, state.players[penalized_player].hand.cards.len());
+        assert_eq!(1, state.players[1].hand.cards.len());
+        assert_eq!(1, state.players[2].hand.cards.len());
     }
 }
