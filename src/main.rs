@@ -1,5 +1,6 @@
 mod card;
 mod game;
+mod logic;
 mod poker;
 
 #[macro_use]
@@ -7,7 +8,7 @@ extern crate strum_macros;
 
 use crate::card::{Rank, Suit};
 use crate::game::{GameError, GameMove, GameResult, GameState};
-use crate::poker::HandValue;
+use crate::poker::{FullHouse, HandValue, TwoPair};
 use std::io;
 
 fn main() -> GameResult {
@@ -84,26 +85,23 @@ fn parse_handvalue() -> Result<HandValue, GameError> {
                 None
             };
 
+            // TODO: refactor into a separate method. Three nested matches isn't good!
             match rank_one {
                 None => Err(GameError::IO),
                 Some(rank) => {
                     let handvalue = match hand {
                         "high" => HandValue::HighCard(rank),
                         "pair" => HandValue::OnePair(rank),
-                        "twopair" => {
-                            match rank_two {
-                                None => return Err(GameError::IO),
-                                Some(rank2) => HandValue::TwoPair(rank, rank2)
-                            }
-                        }
+                        "twopair" => match rank_two {
+                            None => return Err(GameError::IO),
+                            Some(rank2) => HandValue::TwoPair(TwoPair::new(rank, rank2)?),
+                        },
                         "triple" => HandValue::ThreeOfAKind(rank),
                         "straight" => HandValue::Straight(rank),
-                        "fullhouse" => {
-                            match rank_two {
-                                None => return Err(GameError::IO),
-                                Some(rank2) => HandValue::FullHouse(rank, rank2)
-                            }
-                        }
+                        "fullhouse" => match rank_two {
+                            None => return Err(GameError::IO),
+                            Some(rank2) => HandValue::FullHouse(FullHouse::new(rank, rank2)?),
+                        },
                         "quad" => HandValue::FourOfAKind(rank),
                         _ => return Err(GameError::IO),
                     };

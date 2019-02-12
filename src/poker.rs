@@ -5,13 +5,82 @@ use rand::thread_rng;
 use strum::IntoEnumIterator;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub struct TwoPair {
+    top_rank: Rank,
+    bottom_rank: Rank,
+}
+
+impl TwoPair {
+    /// Construct a new TwoPair struct, returning an error if top_rank and bottom_rank are
+    /// equal to each other. This method will also swap top_rank and bottom_rank if necessary
+    /// to ensure that top_rank > bottom_rank.
+    pub fn new(top_rank: Rank, bottom_rank: Rank) -> Result<Self, PokerError> {
+        if top_rank > bottom_rank {
+            Ok(Self {
+                top_rank,
+                bottom_rank,
+            })
+        } else if top_rank < bottom_rank {
+            Ok(Self {
+                top_rank: bottom_rank,
+                bottom_rank: top_rank,
+            })
+        } else {
+            Err(PokerError::InvalidArguments(
+                "Top rank and bottom rank cannot be equal.".to_owned(),
+            ))
+        }
+    }
+
+    /// Return the top rank of the struct.
+    pub fn get_top_rank(&self) -> Rank {
+        self.top_rank
+    }
+
+    /// Return the bottom rank of the struct.
+    pub fn get_bottom_rank(&self) -> Rank {
+        self.bottom_rank
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub struct FullHouse {
+    triple: Rank,
+    pair: Rank,
+}
+
+impl FullHouse {
+    /// Construct a new FullHouse struct, returning an error if top_rank and bottom_rank are
+    /// equal to each other.
+    pub fn new(triple: Rank, pair: Rank) -> Result<Self, PokerError> {
+        if triple != pair {
+            Ok(Self { triple, pair })
+        } else {
+            Err(PokerError::InvalidArguments(
+                "Top rank and bottom rank cannot be equal.".to_owned(),
+            ))
+        }
+    }
+
+    /// Return the triple of the struct.
+    pub fn get_triple(&self) -> Rank {
+        self.triple
+    }
+
+    /// Return the pair of the struct.
+    pub fn get_pair(&self) -> Rank {
+        self.pair
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum HandValue {
     HighCard(Rank),
     OnePair(Rank),
-    TwoPair(Rank, Rank),
+    TwoPair(TwoPair),
     ThreeOfAKind(Rank),
     Straight(Rank),
-    FullHouse(Rank, Rank),
+    FullHouse(FullHouse),
     FourOfAKind(Rank),
 }
 
@@ -30,9 +99,10 @@ pub struct Commune {
     pub cards: Vec<Card>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum PokerError {
     NotEnoughCards(String),
+    InvalidArguments(String),
 }
 
 impl Hand {
@@ -59,9 +129,9 @@ impl Commune {
     pub fn contains_handvalue(&self, value: HandValue) -> bool {
         match value {
             HandValue::FourOfAKind(rank) => self.contains_x_cards_of_rank(4, rank),
-            HandValue::FullHouse(three_of, two_of) => {
-                self.contains_handvalue(HandValue::ThreeOfAKind(three_of))
-                    && self.contains_handvalue(HandValue::OnePair(two_of))
+            HandValue::FullHouse(full_house) => {
+                self.contains_handvalue(HandValue::ThreeOfAKind(full_house.get_triple()))
+                    && self.contains_handvalue(HandValue::OnePair(full_house.get_pair()))
             }
             HandValue::Straight(top_rank) => {
                 if top_rank < Rank::Six {
@@ -71,8 +141,9 @@ impl Commune {
                 }
             }
             HandValue::ThreeOfAKind(rank) => self.contains_x_cards_of_rank(3, rank),
-            HandValue::TwoPair(first, second) => {
-                self.contains_x_cards_of_rank(2, first) && self.contains_x_cards_of_rank(2, second)
+            HandValue::TwoPair(two_pair) => {
+                self.contains_x_cards_of_rank(2, two_pair.get_top_rank())
+                    && self.contains_x_cards_of_rank(2, two_pair.get_bottom_rank())
             }
             HandValue::OnePair(rank) => self.contains_x_cards_of_rank(2, rank),
             HandValue::HighCard(rank) => self.contains_x_cards_of_rank(1, rank),
@@ -185,6 +256,18 @@ mod test {
     }
 
     #[test]
+    fn invalid_two_pair() {
+        let res = poker::TwoPair::new(card::Rank::Three, card::Rank::Three);
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn invalid_full_house() {
+        let res = poker::FullHouse::new(card::Rank::Queen, card::Rank::Queen);
+        assert!(res.is_err());
+    }
+
+    #[test]
     fn empty_hand() {
         let hand = poker::Hand::empty_hand();
         assert_eq!(0, hand.cards.len());
@@ -216,8 +299,7 @@ mod test {
     fn contains_handvalue_pairs_triples() {
         let commune = default_commune();
         assert!(commune.contains_handvalue(poker::HandValue::FullHouse(
-            card::Rank::Queen,
-            card::Rank::Nine,
+            poker::FullHouse::new(card::Rank::Queen, card::Rank::Nine).unwrap()
         )));
         assert!(!commune.contains_handvalue(poker::HandValue::ThreeOfAKind(card::Rank::Nine)));
     }

@@ -20,7 +20,6 @@ pub struct GameState {
 
 #[derive(Debug)]
 pub enum GameMove {
-    NewGame(u8),
     Bet(HandValue),
     Call(),
 }
@@ -64,7 +63,6 @@ impl GameState {
 
     pub fn process_move(&mut self, game_move: GameMove) -> GameResult {
         match game_move {
-            GameMove::NewGame(num_players) => self.create_new_game(num_players)?,
             GameMove::Bet(value) => self.process_bet(value),
             GameMove::Call() => self.process_call()?,
         };
