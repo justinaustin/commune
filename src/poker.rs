@@ -41,6 +41,14 @@ impl TwoPair {
     pub fn get_bottom_rank(&self) -> Rank {
         self.bottom_rank
     }
+
+    pub fn all_possible() -> Vec<Self> {
+        Rank::iter()
+            .cartesian_product(Rank::iter())
+            .filter(|(top_rank, bottom_rank)| top_rank > bottom_rank)
+            .filter_map(|(top_rank, bottom_rank)| Self::new(top_rank, bottom_rank).ok())
+            .collect()
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
@@ -71,7 +79,17 @@ impl FullHouse {
     pub fn get_pair(&self) -> Rank {
         self.pair
     }
+
+    pub fn all_possible() -> Vec<Self> {
+        Rank::iter()
+            .cartesian_product(Rank::iter())
+            .filter_map(|(triple, pair)| Self::new(triple, pair).ok())
+            .collect()
+    }
 }
+
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
+pub struct Probability(f64);
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum HandValue {
@@ -84,25 +102,42 @@ pub enum HandValue {
     FourOfAKind(Rank),
 }
 
+impl HandValue {
+    pub fn all_possible() -> Vec<Self> {
+        vec![
+            Rank::iter()
+                .map(|rank| HandValue::HighCard(rank))
+                .collect::<Vec<Self>>(),
+            Rank::iter()
+                .map(|rank| HandValue::OnePair(rank))
+                .collect::<Vec<Self>>(),
+            TwoPair::all_possible()
+                .into_iter()
+                .map(|twopair| HandValue::TwoPair(twopair))
+                .collect::<Vec<Self>>(),
+            Rank::iter()
+                .map(|rank| HandValue::ThreeOfAKind(rank))
+                .collect::<Vec<Self>>(),
+            Rank::iter()
+                .map(|rank| HandValue::Straight(rank))
+                .collect::<Vec<Self>>(),
+            FullHouse::all_possible()
+                .into_iter()
+                .map(|fullhouse| HandValue::FullHouse(fullhouse))
+                .collect::<Vec<Self>>(),
+            Rank::iter()
+                .map(|rank| HandValue::FourOfAKind(rank))
+                .collect::<Vec<Self>>(),
+        ]
+        .into_iter()
+        .flatten()
+        .collect()
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Hand {
     pub cards: Vec<Card>,
-}
-
-#[derive(Clone, Debug)]
-pub struct Deck {
-    cards: Vec<Card>,
-}
-
-#[derive(Clone, Debug)]
-pub struct Commune {
-    pub cards: Vec<Card>,
-}
-
-#[derive(Clone, Debug)]
-pub enum PokerError {
-    NotEnoughCards(String),
-    InvalidArguments(String),
 }
 
 impl Hand {
@@ -122,6 +157,68 @@ impl Hand {
         }
         output
     }
+
+    pub fn calculate_handvalue_probabilities(
+        &self,
+        other_cards_in_play: usize,
+    ) -> Vec<(HandValue, Probability)> {
+        let mut handvalue_probabilities: Vec<(HandValue, Probability)> = HandValue::all_possible()
+            .into_iter()
+            .map(|handvalue| {
+                (
+                    handvalue,
+                    self.calculate_hand_probability(handvalue, other_cards_in_play),
+                )
+            })
+            .collect();
+        handvalue_probabilities.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        handvalue_probabilities
+    }
+
+    fn calculate_hand_probability(&self, handvalue: HandValue, other_cards_in_play: usize) -> Probability {
+        let all_other_cards = Deck::full_deck_size() - self.cards.len();
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct Deck {
+    cards: Vec<Card>,
+}
+
+impl Deck {
+    /// Return a standard, shuffled 52 card deck.
+    pub fn get_full_deck() -> Self {
+        let mut cards: Vec<Card> = Suit::iter()
+            .cartesian_product(Rank::iter())
+            .map(|(suit, rank)| Card { suit, rank })
+            .collect();
+        let mut rng = thread_rng();
+        cards.shuffle(&mut rng);
+
+        Self { cards: cards }
+    }
+
+    /// Deal cards from the deck.
+    pub fn deal_cards(&mut self, num_cards: usize) -> Result<Hand, PokerError> {
+        if num_cards > self.cards.len() {
+            Err(PokerError::NotEnoughCards(
+                "Tried to deal more cards than in deck.".to_owned(),
+            ))
+        } else {
+            Ok(Hand {
+                cards: self.cards.split_off(self.cards.len() - num_cards),
+            })
+        }
+    }
+
+    pub fn full_deck_size() -> usize {
+        52
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct Commune {
+    pub cards: Vec<Card>,
 }
 
 impl Commune {
@@ -176,31 +273,10 @@ impl Commune {
     }
 }
 
-impl Deck {
-    /// Return a standard, shuffled 52 card deck.
-    pub fn get_full_deck() -> Self {
-        let mut cards: Vec<Card> = Suit::iter()
-            .cartesian_product(Rank::iter())
-            .map(|(suit, rank)| Card { suit, rank })
-            .collect();
-        let mut rng = thread_rng();
-        cards.shuffle(&mut rng);
-
-        Self { cards: cards }
-    }
-
-    /// Deal cards from the deck.
-    pub fn deal_cards(&mut self, num_cards: usize) -> Result<Hand, PokerError> {
-        if num_cards > self.cards.len() {
-            Err(PokerError::NotEnoughCards(
-                "Tried to deal more cards than in deck.".to_owned(),
-            ))
-        } else {
-            Ok(Hand {
-                cards: self.cards.split_off(self.cards.len() - num_cards),
-            })
-        }
-    }
+#[derive(Clone, Debug)]
+pub enum PokerError {
+    NotEnoughCards(String),
+    InvalidArguments(String),
 }
 
 #[cfg(test)]
@@ -262,9 +338,27 @@ mod test {
     }
 
     #[test]
+    fn all_possible_two_pairs() {
+        let all_two_pairs = poker::TwoPair::all_possible();
+        assert_eq!(78, all_two_pairs.len());
+    }
+
+    #[test]
     fn invalid_full_house() {
         let res = poker::FullHouse::new(card::Rank::Queen, card::Rank::Queen);
         assert!(res.is_err());
+    }
+
+    #[test]
+    fn all_possible_full_house() {
+        let all_full_house = poker::FullHouse::all_possible();
+        assert_eq!(156, all_full_house.len());
+    }
+
+    #[test]
+    fn all_possible_hand_value() {
+        let all_hand_value = poker::HandValue::all_possible();
+        assert_eq!(299, all_hand_value.len());
     }
 
     #[test]

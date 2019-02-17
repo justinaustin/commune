@@ -1,6 +1,5 @@
 mod card;
 mod game;
-mod logic;
 mod poker;
 
 #[macro_use]
