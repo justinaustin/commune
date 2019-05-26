@@ -76,9 +76,9 @@ impl fmt::Display for Rank {
     }
 }
 
-impl Rank {
-    pub fn to_u8(&self) -> u8 {
-        match self {
+impl From<Rank> for u8 {
+    fn from(rank: Rank) -> u8 {
+        match &rank {
             &Rank::Two => 2,
             &Rank::Three => 3,
             &Rank::Four => 4,
@@ -94,7 +94,9 @@ impl Rank {
             &Rank::Ace => 14,
         }
     }
+}
 
+impl Rank {
     pub fn from_u8(num: u8) -> Option<Rank> {
         match num {
             2 => Some(Rank::Two),

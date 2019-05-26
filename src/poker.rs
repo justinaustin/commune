@@ -177,6 +177,7 @@ impl Hand {
 
     fn calculate_hand_probability(&self, handvalue: HandValue, other_cards_in_play: usize) -> Probability {
         let all_other_cards = Deck::full_deck_size() - self.cards.len();
+        unimplemented!()
     }
 }
 
@@ -256,7 +257,7 @@ impl Commune {
     }
 
     fn contains_straight(&self, top_rank: Rank) -> bool {
-        let top_rank_index = top_rank.to_u8() as usize;
+        let top_rank_index = top_rank as usize;
         let all_ranks: Vec<Rank> = Rank::iter().collect();
         let ranks_in_straight = &all_ranks[top_rank_index - 6..top_rank_index - 1];
         let all_possible_cards_in_straight: Vec<Vec<Card>> = ranks_in_straight
