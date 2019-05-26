@@ -2,6 +2,7 @@ use crate::card::{Card, LineNumber, Rank, Suit};
 use itertools::Itertools;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
+use std::collections::HashSet;
 use strum::IntoEnumIterator;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
@@ -91,6 +92,23 @@ impl FullHouse {
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
 pub struct Probability(f64);
 
+impl Probability {
+    /// Cumulative distribution function, where `p` is the probability of success, `n` is the
+    /// number of trials, and `k` is the minimum number of successes.
+    pub fn cumulative_probability(p: f64, n: u64, k: u64) -> Self {
+        Self((k..=n).map(|i| Self::binomial_distribution(p, n, i).0).sum())
+    }
+
+    fn binomial_distribution(p: f64, n: u64, k: u64) -> Self {
+        let n_choose_k = Self::factorial(n) / (Self::factorial(k) * Self::factorial(n - k));
+        Self(n_choose_k * p.powi(k as i32) * (1.0 - p).powi((n - k) as i32))
+    }
+
+    fn partial_factorial(lower_bound: u64, upper_bound: u64) -> f64 {
+        (1..=n).map(|x| x as f64).product()
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum HandValue {
     HighCard(Rank),
@@ -171,12 +189,21 @@ impl Hand {
                 )
             })
             .collect();
-        handvalue_probabilities.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
         handvalue_probabilities
     }
 
-    fn calculate_hand_probability(&self, handvalue: HandValue, other_cards_in_play: usize) -> Probability {
-        let all_other_cards = Deck::full_deck_size() - self.cards.len();
+    fn calculate_hand_probability(
+        &self,
+        handvalue: HandValue,
+        other_cards_in_play: usize,
+    ) -> Probability {
+        let total_cards = Deck::full_deck_size() - self.cards.len();
+        let needed_card_sets = self.get_needed_cards_for_handvalue(handvalue);
+
+        let probability_of_each = needed_card_sets.iter().map(|cards| )
+    }
+
+    fn get_needed_cards_for_handvalue(&self, handvalue: HandValue) -> Vec<HashSet<Card>> {
         unimplemented!()
     }
 }
@@ -257,7 +284,8 @@ impl Commune {
     }
 
     fn contains_straight(&self, top_rank: Rank) -> bool {
-        let top_rank_index = top_rank as usize;
+        println!("Rank: {:?}", top_rank);
+        let top_rank_index = u8::from(top_rank) as usize;
         let all_ranks: Vec<Rank> = Rank::iter().collect();
         let ranks_in_straight = &all_ranks[top_rank_index - 6..top_rank_index - 1];
         let all_possible_cards_in_straight: Vec<Vec<Card>> = ranks_in_straight
@@ -405,5 +433,13 @@ mod test {
         assert!(commune.contains_handvalue(poker::HandValue::Straight(card::Rank::Queen)));
         assert!(!commune.contains_handvalue(poker::HandValue::Straight(card::Rank::Eight)));
         assert!(!commune.contains_handvalue(poker::HandValue::Straight(card::Rank::King)));
+    }
+
+    #[test]
+    fn binomial_distribution() {
+        let epislon = 1.0e-6;
+
+        assert!((0.75 - poker::Probability::cumulative_probability(0.5, 2, 1).0).abs() < epislon);
+        assert!((0.31532766369 - poker::Probability::cumulative_probability(0.33, 17, 7).0).abs() < epislon);
     }
 }
