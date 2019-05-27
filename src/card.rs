@@ -3,7 +3,7 @@ use std::fmt;
 
 use strum::IntoEnumIterator;
 
-#[derive(Clone, Copy, Debug, EnumIter, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, EnumIter, Eq, Hash, PartialEq)]
 pub enum Suit {
     Clubs,
     Spades,
@@ -11,7 +11,7 @@ pub enum Suit {
     Diamonds,
 }
 
-#[derive(Clone, Copy, Debug, EnumIter, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Copy, Debug, EnumIter, Eq, Hash, PartialEq, Ord, PartialOrd)]
 pub enum Rank {
     Two,
     Three,
@@ -28,7 +28,7 @@ pub enum Rank {
     Ace,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct Card {
     pub suit: Suit,
     pub rank: Rank,

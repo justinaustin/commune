@@ -92,23 +92,7 @@ impl FullHouse {
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
 pub struct Probability(f64);
 
-impl Probability {
-    /// Cumulative distribution function, where `p` is the probability of success, `n` is the
-    /// number of trials, and `k` is the minimum number of successes.
-    pub fn cumulative_probability(p: f64, n: u64, k: u64) -> Self {
-        Self((k..=n).map(|i| Self::binomial_distribution(p, n, i).0).sum())
-    }
-
-    fn binomial_distribution(p: f64, n: u64, k: u64) -> Self {
-        let n_choose_k = Self::factorial(n) / (Self::factorial(k) * Self::factorial(n - k));
-        Self(n_choose_k * p.powi(k as i32) * (1.0 - p).powi((n - k) as i32))
-    }
-
-    fn partial_factorial(lower_bound: u64, upper_bound: u64) -> f64 {
-        (1..=n).map(|x| x as f64).product()
-    }
-}
-
+/// Poker value of a hand. For a `Straight`, the inner `Rank` is the highest rank of the straight.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum HandValue {
     HighCard(Rank),
@@ -176,35 +160,51 @@ impl Hand {
         output
     }
 
-    pub fn calculate_handvalue_probabilities(
+    pub fn calculate_hand_value_probabilities(
         &self,
         other_cards_in_play: usize,
     ) -> Vec<(HandValue, Probability)> {
-        let mut handvalue_probabilities: Vec<(HandValue, Probability)> = HandValue::all_possible()
+        let mut hand_value_probabilities: Vec<(HandValue, Probability)> = HandValue::all_possible()
             .into_iter()
-            .map(|handvalue| {
+            .map(|hand_value| {
                 (
-                    handvalue,
-                    self.calculate_hand_probability(handvalue, other_cards_in_play),
+                    hand_value,
+                    self.calculate_hand_probability(hand_value, other_cards_in_play),
                 )
             })
             .collect();
-        handvalue_probabilities
+        hand_value_probabilities
     }
 
+    /// Calculate the probability of the input hand value given the player's cards and how many
+    /// other cards are in play.
+    ///
+    /// If `p_i` is the probability of the `i`th group of needed cards, then the probability of
+    /// none of the sets of needed cards appearing is `(1 - p_1)(1 - p_2)...(1 - p_n)`. So, the
+    /// probability of at least one set of needed cards, and therefore the probability of the
+    /// hand_value, is 1 - that.
     fn calculate_hand_probability(
         &self,
-        handvalue: HandValue,
+        hand_value: HandValue,
         other_cards_in_play: usize,
     ) -> Probability {
         let total_cards = Deck::full_deck_size() - self.cards.len();
-        let needed_card_sets = self.get_needed_cards_for_handvalue(handvalue);
+        let needed_card_sets = self.get_needed_cards_for_hand_value(hand_value);
 
-        let probability_of_each = needed_card_sets.iter().map(|cards| )
+        let probability_of_each = needed_card_sets.iter().map(|cards| {
+            Self::permutation(other_cards_in_play, cards.len()) as f64
+                / Self::permutation(total_cards, cards.len()) as f64
+        });
+        let probability_of_none: f64 = probability_of_each.map(|prob| 1.0 - prob).product();
+        Probability(1.0 - probability_of_none)
     }
 
-    fn get_needed_cards_for_handvalue(&self, handvalue: HandValue) -> Vec<HashSet<Card>> {
+    fn get_needed_cards_for_hand_value(&self, hand_value: HandValue) -> Vec<HashSet<Card>> {
         unimplemented!()
+    }
+
+    fn permutation(n: usize, k: usize) -> usize {
+        (n - k + 1..=n).product()
     }
 }
 
@@ -251,12 +251,12 @@ pub struct Commune {
 
 impl Commune {
     /// Return True iff the Commune contains the input HandValue.
-    pub fn contains_handvalue(&self, value: HandValue) -> bool {
+    pub fn contains_hand_value(&self, value: HandValue) -> bool {
         match value {
             HandValue::FourOfAKind(rank) => self.contains_x_cards_of_rank(4, rank),
             HandValue::FullHouse(full_house) => {
-                self.contains_handvalue(HandValue::ThreeOfAKind(full_house.get_triple()))
-                    && self.contains_handvalue(HandValue::OnePair(full_house.get_pair()))
+                self.contains_hand_value(HandValue::ThreeOfAKind(full_house.get_triple()))
+                    && self.contains_hand_value(HandValue::OnePair(full_house.get_pair()))
             }
             HandValue::Straight(top_rank) => {
                 if top_rank < Rank::Six {
@@ -310,51 +310,54 @@ pub enum PokerError {
 
 #[cfg(test)]
 mod test {
-    use crate::card;
-    use crate::poker;
+    use crate::card::{Card, Rank, Suit};
+    use crate::poker::*;
+    use assert_approx_eq::assert_approx_eq;
+    use itertools::Itertools;
+    use std::collections::HashSet;
 
-    fn default_commune() -> poker::Commune {
-        poker::Commune {
+    fn default_commune() -> Commune {
+        Commune {
             cards: vec![
-                card::Card {
-                    rank: card::Rank::Queen,
-                    suit: card::Suit::Spades,
+                Card {
+                    rank: Rank::Queen,
+                    suit: Suit::Spades,
                 },
-                card::Card {
-                    rank: card::Rank::Queen,
-                    suit: card::Suit::Hearts,
+                Card {
+                    rank: Rank::Queen,
+                    suit: Suit::Hearts,
                 },
-                card::Card {
-                    rank: card::Rank::Queen,
-                    suit: card::Suit::Clubs,
+                Card {
+                    rank: Rank::Queen,
+                    suit: Suit::Clubs,
                 },
-                card::Card {
-                    rank: card::Rank::Queen,
-                    suit: card::Suit::Diamonds,
+                Card {
+                    rank: Rank::Queen,
+                    suit: Suit::Diamonds,
                 },
-                card::Card {
-                    rank: card::Rank::Jack,
-                    suit: card::Suit::Diamonds,
+                Card {
+                    rank: Rank::Jack,
+                    suit: Suit::Diamonds,
                 },
-                card::Card {
-                    rank: card::Rank::Ten,
-                    suit: card::Suit::Spades,
+                Card {
+                    rank: Rank::Ten,
+                    suit: Suit::Spades,
                 },
-                card::Card {
-                    rank: card::Rank::Nine,
-                    suit: card::Suit::Clubs,
+                Card {
+                    rank: Rank::Nine,
+                    suit: Suit::Clubs,
                 },
-                card::Card {
-                    rank: card::Rank::Nine,
-                    suit: card::Suit::Diamonds,
+                Card {
+                    rank: Rank::Nine,
+                    suit: Suit::Diamonds,
                 },
-                card::Card {
-                    rank: card::Rank::Eight,
-                    suit: card::Suit::Hearts,
+                Card {
+                    rank: Rank::Eight,
+                    suit: Suit::Hearts,
                 },
-                card::Card {
-                    rank: card::Rank::Three,
-                    suit: card::Suit::Spades,
+                Card {
+                    rank: Rank::Three,
+                    suit: Suit::Spades,
                 },
             ],
         }
@@ -362,49 +365,49 @@ mod test {
 
     #[test]
     fn invalid_two_pair() {
-        let res = poker::TwoPair::new(card::Rank::Three, card::Rank::Three);
+        let res = TwoPair::new(Rank::Three, Rank::Three);
         assert!(res.is_err());
     }
 
     #[test]
     fn all_possible_two_pairs() {
-        let all_two_pairs = poker::TwoPair::all_possible();
+        let all_two_pairs = TwoPair::all_possible();
         assert_eq!(78, all_two_pairs.len());
     }
 
     #[test]
     fn invalid_full_house() {
-        let res = poker::FullHouse::new(card::Rank::Queen, card::Rank::Queen);
+        let res = FullHouse::new(Rank::Queen, Rank::Queen);
         assert!(res.is_err());
     }
 
     #[test]
     fn all_possible_full_house() {
-        let all_full_house = poker::FullHouse::all_possible();
+        let all_full_house = FullHouse::all_possible();
         assert_eq!(156, all_full_house.len());
     }
 
     #[test]
     fn all_possible_hand_value() {
-        let all_hand_value = poker::HandValue::all_possible();
+        let all_hand_value = HandValue::all_possible();
         assert_eq!(299, all_hand_value.len());
     }
 
     #[test]
     fn empty_hand() {
-        let hand = poker::Hand::empty_hand();
+        let hand = Hand::empty_hand();
         assert_eq!(0, hand.cards.len());
     }
 
     #[test]
     fn full_deck() {
-        let deck = poker::Deck::get_full_deck();
+        let deck = Deck::get_full_deck();
         assert_eq!(52, deck.cards.len());
     }
 
     #[test]
     fn deal_cards_valid() {
-        let mut deck = poker::Deck::get_full_deck();
+        let mut deck = Deck::get_full_deck();
         let hand = deck.deal_cards(7).unwrap();
         assert_eq!(7, hand.cards.len());
         assert_eq!(52, hand.cards.len() + deck.cards.len());
@@ -412,34 +415,78 @@ mod test {
 
     #[test]
     fn deal_cards_invalid() {
-        let mut deck = poker::Deck::get_full_deck();
+        let mut deck = Deck::get_full_deck();
         let _ = deck.deal_cards(40).unwrap();
         let should_be_error = deck.deal_cards(40);
         assert!(should_be_error.is_err());
     }
 
     #[test]
-    fn contains_handvalue_pairs_triples() {
+    fn contains_hand_value_pairs_triples() {
         let commune = default_commune();
-        assert!(commune.contains_handvalue(poker::HandValue::FullHouse(
-            poker::FullHouse::new(card::Rank::Queen, card::Rank::Nine).unwrap()
+        assert!(commune.contains_hand_value(HandValue::FullHouse(
+            FullHouse::new(Rank::Queen, Rank::Nine).unwrap()
         )));
-        assert!(!commune.contains_handvalue(poker::HandValue::ThreeOfAKind(card::Rank::Nine)));
+        assert!(!commune.contains_hand_value(HandValue::ThreeOfAKind(Rank::Nine)));
     }
 
     #[test]
-    fn contains_handvalue_straight() {
+    fn contains_hand_value_straight() {
         let commune = default_commune();
-        assert!(commune.contains_handvalue(poker::HandValue::Straight(card::Rank::Queen)));
-        assert!(!commune.contains_handvalue(poker::HandValue::Straight(card::Rank::Eight)));
-        assert!(!commune.contains_handvalue(poker::HandValue::Straight(card::Rank::King)));
+        assert!(commune.contains_hand_value(HandValue::Straight(Rank::Queen)));
+        assert!(!commune.contains_hand_value(HandValue::Straight(Rank::Eight)));
+        assert!(!commune.contains_hand_value(HandValue::Straight(Rank::King)));
     }
 
     #[test]
-    fn binomial_distribution() {
-        let epislon = 1.0e-6;
+    fn partial_factorial() {
+        assert_eq!(20, Hand::permutation(5, 2));
+        assert_eq!(9_480_240, Hand::permutation(57, 4));
+    }
 
-        assert!((0.75 - poker::Probability::cumulative_probability(0.5, 2, 1).0).abs() < epislon);
-        assert!((0.31532766369 - poker::Probability::cumulative_probability(0.33, 17, 7).0).abs() < epislon);
+    #[test]
+    fn get_needed_cards_for_hand_value_none_needed() {
+        let hand = Hand {
+            cards: Card::get_all_with_rank(Rank::Ace),
+        };
+        let empty: Vec<HashSet<Card>> = vec![];
+        assert_eq!(
+            empty,
+            hand.get_needed_cards_for_hand_value(HandValue::FourOfAKind(Rank::Ace))
+        );
+    }
+
+    #[test]
+    fn get_needed_cards_for_hand_value() {
+        let hand = Hand {
+            cards: vec![
+                Card {
+                    suit: Suit::Diamonds,
+                    rank: Rank::Two,
+                },
+                Card {
+                    suit: Suit::Hearts,
+                    rank: Rank::Three,
+                },
+                Card {
+                    suit: Suit::Spades,
+                    rank: Rank::Four,
+                },
+            ],
+        };
+        let expected: Vec<HashSet<Card>> = Card::get_all_with_rank(Rank::Five)
+            .into_iter()
+            .cartesian_product(Card::get_all_with_rank(Rank::Six).into_iter())
+            .map(|(rank_five, rank_six)| {
+                let mut set = HashSet::new();
+                set.insert(rank_five);
+                set.insert(rank_six);
+                set
+            })
+            .collect();
+        let actual = hand.get_needed_cards_for_hand_value(HandValue::Straight(Rank::Six));
+
+        assert_eq!(expected.len(), actual.len());
+        assert!(actual.iter().all(|cards| expected.contains(cards)));
     }
 }

@@ -75,7 +75,7 @@ fn parse_handvalue() -> Result<HandValue, GameError> {
     let mut input = String::new();
     match io::stdin().read_line(&mut input) {
         Ok(_) => {
-            let vec: Vec<&str> = input.split(" ").collect();
+            let vec: Vec<&str> = input.split(' ').collect();
             let hand = vec[0].trim();
             let rank_one = Rank::from_str(vec[1].trim());
             let rank_two = if vec.len() == 3 {

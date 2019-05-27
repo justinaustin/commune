@@ -119,7 +119,7 @@ impl GameState {
         match self.current_bet {
             None => Err(GameError::CallWithNoBet),
             Some(bet) => {
-                let penalized_player = if self.gather_all_cards().contains_handvalue(bet) {
+                let penalized_player = if self.gather_all_cards().contains_hand_value(bet) {
                     self.current_turn
                 } else {
                     self.get_previous_player()
