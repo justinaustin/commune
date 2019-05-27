@@ -107,12 +107,8 @@ pub enum HandValue {
 impl HandValue {
     pub fn all_possible() -> Vec<Self> {
         vec![
-            Rank::iter()
-                .map(HandValue::HighCard)
-                .collect::<Vec<Self>>(),
-            Rank::iter()
-                .map(HandValue::OnePair)
-                .collect::<Vec<Self>>(),
+            Rank::iter().map(HandValue::HighCard).collect::<Vec<Self>>(),
+            Rank::iter().map(HandValue::OnePair).collect::<Vec<Self>>(),
             TwoPair::all_possible()
                 .into_iter()
                 .map(HandValue::TwoPair)
@@ -120,9 +116,7 @@ impl HandValue {
             Rank::iter()
                 .map(HandValue::ThreeOfAKind)
                 .collect::<Vec<Self>>(),
-            Rank::iter()
-                .map(HandValue::Straight)
-                .collect::<Vec<Self>>(),
+            Rank::iter().map(HandValue::Straight).collect::<Vec<Self>>(),
             FullHouse::all_possible()
                 .into_iter()
                 .map(HandValue::FullHouse)
@@ -200,7 +194,53 @@ impl Hand {
     }
 
     fn get_needed_cards_for_hand_value(&self, hand_value: HandValue) -> Vec<HashSet<Card>> {
-        unimplemented!()
+        match hand_value {
+            HandValue::HighCard(rank) => self.get_needed_cards_for_rank_hand(1, rank),
+            HandValue::OnePair(rank) => self.get_needed_cards_for_rank_hand(2, rank),
+            HandValue::TwoPair(two_pair) => unimplemented!(),
+            HandValue::ThreeOfAKind(rank) => self.get_needed_cards_for_rank_hand(3, rank),
+            HandValue::Straight(rank) => unimplemented!(),
+            HandValue::FullHouse(full_house) => unimplemented!(),
+            HandValue::FourOfAKind(rank) => self.get_needed_cards_for_rank_hand(4, rank),
+        }
+    }
+
+    /// Return the minimal needed sets of Cards for a given number of `Rank` cards.
+    fn get_needed_cards_for_rank_hand(&self, size: u8, rank: Rank) -> Vec<HashSet<Card>> {
+        // TODO: Test me
+        let mut needed_card_sets = vec![];
+        let all_cards_in_rank = Card::get_all_with_rank(rank);
+        let rank_cards_not_in_hand: Vec<Card> = all_cards_in_rank
+            .iter()
+            .filter(|card| !self.cards.contains(card))
+            .cloned()
+            .collect();
+        for i in 0..=rank_cards_not_in_hand.len() {
+            let combinations: Vec<Vec<Card>> = rank_cards_not_in_hand
+                .iter()
+                .cloned()
+                .combinations(i)
+                .collect();
+            let augmented_hands = combinations.iter().map(|card_set| {
+                let mut current_cards = self.cards.clone();
+                current_cards.extend(card_set);
+                current_cards
+            });
+            for augmented_hand in augmented_hands {
+                let future_commune = Commune {
+                    cards: augmented_hand,
+                };
+                if future_commune.contains_x_cards_of_rank(size, rank) {
+                    needed_card_sets.push(future_commune.cards.into_iter().collect());
+                }
+            }
+
+            if needed_card_sets.len() > 0 {
+                return needed_card_sets;
+            }
+        }
+
+        needed_card_sets
     }
 
     fn permutation(n: usize, k: usize) -> usize {
@@ -457,7 +497,27 @@ mod test {
     }
 
     #[test]
-    fn get_needed_cards_for_hand_value() {
+    fn get_needed_cards_for_hand_value_rank() {
+        let rank = Rank::Queen;
+        let hand = Hand {
+            cards: vec![Card { suit: Suit::Clubs, rank }],
+        };
+        let mut first_combination = HashSet::new();
+        first_combination.insert(Card { suit: Suit::Diamonds, rank});
+        first_combination.insert(Card { suit: Suit::Hearts, rank});
+
+        let mut second_combination = HashSet::new();
+        second_combination.insert(Card { suit: Suit::Diamonds, rank});
+        second_combination.insert(Card { suit: Suit::Spades, rank});
+
+        let mut third_combination = HashSet::new();
+        third_combination.insert(Card { suit: Suit::Hearts, rank});
+        third_combination.insert(Card { suit: Suit::Spades, rank});
+
+    }
+
+    #[test]
+    fn get_needed_cards_for_hand_value_straight() {
         let hand = Hand {
             cards: vec![
                 Card {
@@ -488,5 +548,20 @@ mod test {
 
         assert_eq!(expected.len(), actual.len());
         assert!(actual.iter().all(|cards| expected.contains(cards)));
+    }
+
+    #[test]
+    fn calculate_hand_probability() {
+        let hand = Hand {
+            cards: vec![Card {
+                suit: Suit::Clubs,
+                rank: Rank::Ten,
+            }],
+        };
+        assert_approx_eq!(
+            0.12390956,
+            hand.calculate_hand_probability(HandValue::ThreeOfAKind(Rank::Ten), 11)
+                .0
+        );
     }
 }
