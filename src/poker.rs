@@ -496,6 +496,11 @@ mod test {
         );
     }
 
+    fn assert_unordered_vec_equals<T: PartialEq>(left: Vec<T>, right: Vec<T>) {
+        assert_eq!(left.len(), right.len());
+        assert!(right.iter().all(|cards| left.contains(cards)));
+    }
+
     #[test]
     fn get_needed_cards_for_hand_value_rank() {
         let rank = Rank::Queen;
@@ -514,6 +519,10 @@ mod test {
         third_combination.insert(Card { suit: Suit::Hearts, rank});
         third_combination.insert(Card { suit: Suit::Spades, rank});
 
+        let expected = vec![first_combination, second_combination, third_combination];
+        let actual = hand.get_needed_cards_for_hand_value(HandValue::ThreeOfAKind(Rank::Queen));
+
+        assert_unordered_vec_equals(expected, actual);
     }
 
     #[test]
@@ -546,8 +555,7 @@ mod test {
             .collect();
         let actual = hand.get_needed_cards_for_hand_value(HandValue::Straight(Rank::Six));
 
-        assert_eq!(expected.len(), actual.len());
-        assert!(actual.iter().all(|cards| expected.contains(cards)));
+        assert_unordered_vec_equals(expected, actual);
     }
 
     #[test]
