@@ -152,7 +152,7 @@ impl GameState {
             cards: self
                 .players
                 .iter()
-                .flat_map(|player| player.hand.cards.iter().map(|card| *card))
+                .flat_map(|player| player.hand.cards.iter().cloned())
                 .collect(),
         }
     }

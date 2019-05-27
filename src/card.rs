@@ -46,10 +46,10 @@ pub enum LineNumber {
 impl fmt::Display for Suit {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let representation = match self {
-            &Suit::Clubs => "♣",
-            &Suit::Diamonds => "♦",
-            &Suit::Hearts => "♥",
-            &Suit::Spades => "♠",
+            Suit::Clubs => "♣",
+            Suit::Diamonds => "♦",
+            Suit::Hearts => "♥",
+            Suit::Spades => "♠",
         };
         write!(f, "{}", representation)
     }
@@ -78,20 +78,20 @@ impl fmt::Display for Rank {
 
 impl From<Rank> for u8 {
     fn from(rank: Rank) -> u8 {
-        match &rank {
-            &Rank::Two => 2,
-            &Rank::Three => 3,
-            &Rank::Four => 4,
-            &Rank::Five => 5,
-            &Rank::Six => 6,
-            &Rank::Seven => 7,
-            &Rank::Eight => 8,
-            &Rank::Nine => 9,
-            &Rank::Ten => 10,
-            &Rank::Jack => 11,
-            &Rank::Queen => 12,
-            &Rank::King => 13,
-            &Rank::Ace => 14,
+        match rank {
+            Rank::Two => 2,
+            Rank::Three => 3,
+            Rank::Four => 4,
+            Rank::Five => 5,
+            Rank::Six => 6,
+            Rank::Seven => 7,
+            Rank::Eight => 8,
+            Rank::Nine => 9,
+            Rank::Ten => 10,
+            Rank::Jack => 11,
+            Rank::Queen => 12,
+            Rank::King => 13,
+            Rank::Ace => 14,
         }
     }
 }
@@ -149,7 +149,7 @@ impl Ord for Card {
 }
 
 impl Card {
-    pub fn to_single_string(&self, line: LineNumber) -> String {
+    pub fn to_single_string(self, line: LineNumber) -> String {
         let card_boundary = "+-----+".to_owned();
         match line {
             LineNumber::Zero | LineNumber::Four => card_boundary,
@@ -171,7 +171,7 @@ impl Card {
         }
     }
 
-    pub fn to_string(&self) -> String {
+    pub fn to_string(self) -> String {
         let mut output = "".to_owned();
         let num_lines = LineNumber::iter().len();
         for (i, line) in LineNumber::iter().enumerate() {

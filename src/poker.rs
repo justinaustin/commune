@@ -34,12 +34,12 @@ impl TwoPair {
     }
 
     /// Return the top rank of the struct.
-    pub fn get_top_rank(&self) -> Rank {
+    pub fn get_top_rank(self) -> Rank {
         self.top_rank
     }
 
     /// Return the bottom rank of the struct.
-    pub fn get_bottom_rank(&self) -> Rank {
+    pub fn get_bottom_rank(self) -> Rank {
         self.bottom_rank
     }
 
@@ -72,12 +72,12 @@ impl FullHouse {
     }
 
     /// Return the triple of the struct.
-    pub fn get_triple(&self) -> Rank {
+    pub fn get_triple(self) -> Rank {
         self.triple
     }
 
     /// Return the pair of the struct.
-    pub fn get_pair(&self) -> Rank {
+    pub fn get_pair(self) -> Rank {
         self.pair
     }
 
@@ -108,27 +108,27 @@ impl HandValue {
     pub fn all_possible() -> Vec<Self> {
         vec![
             Rank::iter()
-                .map(|rank| HandValue::HighCard(rank))
+                .map(HandValue::HighCard)
                 .collect::<Vec<Self>>(),
             Rank::iter()
-                .map(|rank| HandValue::OnePair(rank))
+                .map(HandValue::OnePair)
                 .collect::<Vec<Self>>(),
             TwoPair::all_possible()
                 .into_iter()
-                .map(|twopair| HandValue::TwoPair(twopair))
+                .map(HandValue::TwoPair)
                 .collect::<Vec<Self>>(),
             Rank::iter()
-                .map(|rank| HandValue::ThreeOfAKind(rank))
+                .map(HandValue::ThreeOfAKind)
                 .collect::<Vec<Self>>(),
             Rank::iter()
-                .map(|rank| HandValue::Straight(rank))
+                .map(HandValue::Straight)
                 .collect::<Vec<Self>>(),
             FullHouse::all_possible()
                 .into_iter()
-                .map(|fullhouse| HandValue::FullHouse(fullhouse))
+                .map(HandValue::FullHouse)
                 .collect::<Vec<Self>>(),
             Rank::iter()
-                .map(|rank| HandValue::FourOfAKind(rank))
+                .map(HandValue::FourOfAKind)
                 .collect::<Vec<Self>>(),
         ]
         .into_iter()
@@ -223,7 +223,7 @@ impl Deck {
         let mut rng = thread_rng();
         cards.shuffle(&mut rng);
 
-        Self { cards: cards }
+        Self { cards }
     }
 
     /// Deal cards from the deck.
