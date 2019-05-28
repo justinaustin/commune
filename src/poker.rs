@@ -207,7 +207,6 @@ impl Hand {
 
     /// Return the minimal needed sets of Cards for a given number of `Rank` cards.
     fn get_needed_cards_for_rank_hand(&self, size: u8, rank: Rank) -> Vec<HashSet<Card>> {
-        // TODO: Test me
         let mut needed_card_sets = vec![];
         let all_cards_in_rank = Card::get_all_with_rank(rank);
         let rank_cards_not_in_hand: Vec<Card> = all_cards_in_rank
@@ -226,12 +225,12 @@ impl Hand {
                 current_cards.extend(card_set);
                 current_cards
             });
-            for augmented_hand in augmented_hands {
+            for (augmented_hand, new_cards) in augmented_hands.zip(combinations.iter()) {
                 let future_commune = Commune {
                     cards: augmented_hand,
                 };
                 if future_commune.contains_x_cards_of_rank(size, rank) {
-                    needed_card_sets.push(future_commune.cards.into_iter().collect());
+                    needed_card_sets.push(new_cards.into_iter().cloned().collect());
                 }
             }
 
@@ -324,7 +323,6 @@ impl Commune {
     }
 
     fn contains_straight(&self, top_rank: Rank) -> bool {
-        println!("Rank: {:?}", top_rank);
         let top_rank_index = u8::from(top_rank) as usize;
         let all_ranks: Vec<Rank> = Rank::iter().collect();
         let ranks_in_straight = &all_ranks[top_rank_index - 6..top_rank_index - 1];
@@ -501,29 +499,89 @@ mod test {
         assert!(right.iter().all(|cards| left.contains(cards)));
     }
 
+    /// Create a new HashSet containing the input elements. Modeled after the vec! macro.
+    macro_rules! set {
+        ($( $x:expr ), *) => {
+            {
+                let mut tmp = HashSet::new();
+                $(
+                    tmp.insert($x);
+                )*
+                tmp
+            }
+        };
+    }
+
     #[test]
     fn get_needed_cards_for_hand_value_rank() {
         let rank = Rank::Queen;
         let hand = Hand {
-            cards: vec![Card { suit: Suit::Clubs, rank }],
+            cards: vec![Card {
+                suit: Suit::Clubs,
+                rank,
+            }],
         };
-        let mut first_combination = HashSet::new();
-        first_combination.insert(Card { suit: Suit::Diamonds, rank});
-        first_combination.insert(Card { suit: Suit::Hearts, rank});
-
-        let mut second_combination = HashSet::new();
-        second_combination.insert(Card { suit: Suit::Diamonds, rank});
-        second_combination.insert(Card { suit: Suit::Spades, rank});
-
-        let mut third_combination = HashSet::new();
-        third_combination.insert(Card { suit: Suit::Hearts, rank});
-        third_combination.insert(Card { suit: Suit::Spades, rank});
-
-        let expected = vec![first_combination, second_combination, third_combination];
+        let expected = vec![
+            set![
+                Card {
+                    suit: Suit::Diamonds,
+                    rank
+                },
+                Card {
+                    suit: Suit::Hearts,
+                    rank
+                }
+            ],
+            set![
+                Card {
+                    suit: Suit::Diamonds,
+                    rank
+                },
+                Card {
+                    suit: Suit::Spades,
+                    rank
+                }
+            ],
+            set![
+                Card {
+                    suit: Suit::Hearts,
+                    rank
+                },
+                Card {
+                    suit: Suit::Spades,
+                    rank
+                }
+            ],
+        ];
         let actual = hand.get_needed_cards_for_hand_value(HandValue::ThreeOfAKind(Rank::Queen));
 
         assert_unordered_vec_equals(expected, actual);
     }
+
+    // #[test]
+    // fn get_needed_cards_for_hand_value_threeofakind() {
+    // let rank_pair = Rank::Queen;
+    // let rank_trip = Rank::Nine;
+    // let hand = Hand {
+    // cards: vec![Card { suit: Suit::Clubs, rank: rank_pair }, Card { suit: Suit::Clubs, rank: rank_trip}, Card { suit: Suit::Diamonds, rank: rank_trip}],
+    // };
+    // let mut first_combination = HashSet::new();
+    // first_combination.insert(Card { suit: Suit::Diamonds, rank: rank_pair});
+    // first_combination.insert(Card { suit: Suit::Hearts, rank: rank_pair});
+    //
+    // let mut second_combination = HashSet::new();
+    // second_combination.insert(Card { suit: Suit::Diamonds, rank: rank_pair});
+    // second_combination.insert(Card { suit: Suit::Spades, rank: rank_pair});
+    //
+    // let mut third_combination = HashSet::new();
+    // third_combination.insert(Card { suit: Suit::Hearts, rank: rank_pair});
+    // third_combination.insert(Card { suit: Suit::Spades, rank: rank_pair});
+    //
+    // let expected = vec![first_combination, second_combination, third_combination];
+    // let actual = hand.get_needed_cards_for_hand_value(HandValue::ThreeOfAKind(Rank::Queen));
+    //
+    // assert_unordered_vec_equals(expected, actual);
+    // }
 
     #[test]
     fn get_needed_cards_for_hand_value_straight() {
@@ -546,12 +604,7 @@ mod test {
         let expected: Vec<HashSet<Card>> = Card::get_all_with_rank(Rank::Five)
             .into_iter()
             .cartesian_product(Card::get_all_with_rank(Rank::Six).into_iter())
-            .map(|(rank_five, rank_six)| {
-                let mut set = HashSet::new();
-                set.insert(rank_five);
-                set.insert(rank_six);
-                set
-            })
+            .map(|(rank_five, rank_six)| set![rank_five, rank_six])
             .collect();
         let actual = hand.get_needed_cards_for_hand_value(HandValue::Straight(Rank::Six));
 
